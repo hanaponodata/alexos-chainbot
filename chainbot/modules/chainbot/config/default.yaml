@@ -1,0 +1,133 @@
+# ChainBot Module Configuration for ALEX OS
+# Default configuration settings
+
+module:
+  name: "chainbot"
+  version: "1.0.0"
+  description: "Advanced Workflow Orchestration Engine with AI Agent Management"
+  enabled: true
+  auto_start: true
+
+database:
+  url: "postgresql://localhost/chainbot"
+  pool_size: 10
+  max_overflow: 20
+  pool_timeout: 30
+  pool_recycle: 3600
+
+workflow:
+  max_concurrent_executions: 5
+  default_timeout_hours: 1
+  max_timeout_hours: 24
+  retry_attempts: 3
+  retry_delay_seconds: 5
+  parallel_step_limit: 10
+  enable_audit_logging: true
+  enable_websocket_events: true
+
+agents:
+  types:
+    - "assistant"
+    - "data_processor"
+    - "api"
+    - "workflow"
+  max_instances_per_type: 10
+  max_total_instances: 50
+  default_session_timeout_minutes: 60
+  enable_auto_cleanup: true
+  cleanup_interval_minutes: 30
+
+entanglement:
+  max_agents_per_entanglement: 20
+  max_entanglements: 100
+  message_queue_size: 1000
+  message_retention_hours: 24
+  enable_broadcast_messages: true
+  enable_private_messages: true
+
+websocket:
+  enabled: true
+  max_connections: 100
+  heartbeat_interval_seconds: 30
+  connection_timeout_seconds: 300
+  enable_broadcast: true
+  enable_user_specific_events: true
+
+audit:
+  enabled: true
+  log_level: "INFO"
+  retention_days: 90
+  enable_detailed_logging: true
+  sensitive_fields:
+    - "password"
+    - "api_key"
+    - "token"
+    - "secret"
+
+security:
+  enable_rbac: true
+  default_permissions:
+    - "chainbot:read"
+    - "chainbot:workflow:execute"
+    - "chainbot:agent:spawn"
+  admin_permissions:
+    - "chainbot:admin"
+    - "chainbot:workflow:create"
+    - "chainbot:workflow:delete"
+    - "chainbot:agent:terminate"
+    - "chainbot:entanglement:manage"
+
+performance:
+  enable_caching: true
+  cache_ttl_seconds: 300
+  enable_metrics: true
+  metrics_interval_seconds: 60
+  enable_profiling: false
+  max_memory_mb: 512
+
+raspberry_pi:
+  enable_hardware_monitoring: true
+  cpu_temp_threshold_celsius: 80
+  memory_threshold_percent: 90
+  disk_threshold_percent: 85
+  enable_gpio_integration: false
+  gpio_pins:
+    status_led: 18
+    error_led: 23
+    reset_button: 24
+
+alex_os_integration:
+  enable_event_bus: true
+  enable_config_sync: true
+  enable_health_reporting: true
+  health_check_interval_seconds: 30
+  enable_module_discovery: true
+  module_registry_url: "http://10.42.69.208:8000/api/modules"
+  
+  # ALEX OS specific event topics
+  event_topics:
+    workflow_started: "chainbot.workflow.started"
+    workflow_completed: "chainbot.workflow.completed"
+    workflow_failed: "chainbot.workflow.failed"
+    agent_spawned: "chainbot.agent.spawned"
+    agent_terminated: "chainbot.agent.terminated"
+    entanglement_created: "chainbot.entanglement.created"
+    entanglement_message: "chainbot.entanglement.message"
+    
+  # ALEX OS API endpoints
+  api_endpoints:
+    workflows: "/api/chainbot/workflows"
+    agents: "/api/chainbot/agents"
+    entanglements: "/api/chainbot/entanglements"
+    executions: "/api/chainbot/executions"
+    health: "/api/chainbot/health"
+    metrics: "/api/chainbot/metrics"
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "/var/log/alex_os/chainbot.log"
+  max_size_mb: 100
+  backup_count: 5
+  enable_console_output: true
+  enable_file_output: true 

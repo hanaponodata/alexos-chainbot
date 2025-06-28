@@ -1,0 +1,666 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ChainBot ALEX OS Module Configuration Schema",
+  "description": "Configuration schema for ChainBot ALEX OS module",
+  "type": "object",
+  "properties": {
+    "module": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]+$",
+          "description": "Module name"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "Module version"
+        },
+        "description": {
+          "type": "string",
+          "description": "Module description"
+        },
+        "log_level": {
+          "type": "string",
+          "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+          "description": "Logging level"
+        },
+        "debug": {
+          "type": "boolean",
+          "description": "Debug mode"
+        }
+      },
+      "required": ["name", "version", "description"],
+      "additionalProperties": false
+    },
+    "database": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Database connection URL"
+        },
+        "pool_size": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "description": "Database connection pool size"
+        },
+        "max_overflow": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Maximum overflow connections"
+        },
+        "pool_timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 300,
+          "description": "Connection pool timeout in seconds"
+        },
+        "pool_recycle": {
+          "type": "integer",
+          "minimum": 300,
+          "maximum": 7200,
+          "description": "Connection pool recycle time in seconds"
+        },
+        "echo": {
+          "type": "boolean",
+          "description": "SQL echo mode"
+        }
+      },
+      "required": ["url"],
+      "additionalProperties": false
+    },
+    "api": {
+      "type": "object",
+      "properties": {
+        "host": {
+          "type": "string",
+          "description": "API host address"
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "description": "API port number"
+        },
+        "debug": {
+          "type": "boolean",
+          "description": "API debug mode"
+        },
+        "workers": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16,
+          "description": "Number of worker processes"
+        },
+        "timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 300,
+          "description": "Request timeout in seconds"
+        },
+        "cors_origins": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "CORS allowed origins"
+        }
+      },
+      "required": ["host", "port"],
+      "additionalProperties": false
+    },
+    "security": {
+      "type": "object",
+      "properties": {
+        "secret_key": {
+          "type": "string",
+          "minLength": 32,
+          "description": "Secret key for JWT tokens"
+        },
+        "algorithm": {
+          "type": "string",
+          "enum": ["HS256", "HS384", "HS512"],
+          "description": "JWT algorithm"
+        },
+        "access_token_expire_minutes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1440,
+          "description": "Access token expiration time in minutes"
+        },
+        "refresh_token_expire_days": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 365,
+          "description": "Refresh token expiration time in days"
+        },
+        "password_min_length": {
+          "type": "integer",
+          "minimum": 6,
+          "maximum": 128,
+          "description": "Minimum password length"
+        },
+        "bcrypt_rounds": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 16,
+          "description": "BCrypt rounds"
+        }
+      },
+      "required": ["secret_key", "algorithm"],
+      "additionalProperties": false
+    },
+    "logging": {
+      "type": "object",
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+          "description": "Logging level"
+        },
+        "file": {
+          "type": "string",
+          "description": "Log file path"
+        },
+        "format": {
+          "type": "string",
+          "description": "Log format string"
+        },
+        "max_size": {
+          "type": "integer",
+          "minimum": 1048576,
+          "description": "Maximum log file size in bytes"
+        },
+        "backup_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Number of backup log files"
+        },
+        "console": {
+          "type": "boolean",
+          "description": "Enable console logging"
+        }
+      },
+      "required": ["level", "file"],
+      "additionalProperties": false
+    },
+    "alex_os": {
+      "type": "object",
+      "properties": {
+        "event_bus_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "ALEX OS event bus URL"
+        },
+        "webhook_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "ALEX OS webhook URL"
+        },
+        "health_check_interval": {
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 300,
+          "description": "Health check interval in seconds"
+        },
+        "metrics_enabled": {
+          "type": "boolean",
+          "description": "Enable metrics collection"
+        },
+        "module_registry_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Module registry URL"
+        },
+        "integration_timeout": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 300,
+          "description": "Integration timeout in seconds"
+        }
+      },
+      "required": ["event_bus_url", "webhook_url"],
+      "additionalProperties": false
+    },
+    "workflow_engine": {
+      "type": "object",
+      "properties": {
+        "max_concurrent_workflows": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "description": "Maximum concurrent workflows"
+        },
+        "max_workflow_duration": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 86400,
+          "description": "Maximum workflow duration in seconds"
+        },
+        "retry_attempts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10,
+          "description": "Number of retry attempts"
+        },
+        "retry_delay": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 300,
+          "description": "Retry delay in seconds"
+        },
+        "workflow_timeout": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 3600,
+          "description": "Workflow timeout in seconds"
+        },
+        "cleanup_interval": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 3600,
+          "description": "Cleanup interval in seconds"
+        },
+        "max_workflow_history": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 10000,
+          "description": "Maximum workflow history entries"
+        }
+      },
+      "required": ["max_concurrent_workflows", "max_workflow_duration"],
+      "additionalProperties": false
+    },
+    "agent_management": {
+      "type": "object",
+      "properties": {
+        "max_agents": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "description": "Maximum number of agents"
+        },
+        "agent_timeout": {
+          "type": "integer",
+          "minimum": 30,
+          "maximum": 1800,
+          "description": "Agent timeout in seconds"
+        },
+        "spawn_interval": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60,
+          "description": "Agent spawn interval in seconds"
+        },
+        "max_agent_memory": {
+          "type": "integer",
+          "minimum": 64,
+          "maximum": 4096,
+          "description": "Maximum agent memory in MB"
+        },
+        "agent_heartbeat_interval": {
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 300,
+          "description": "Agent heartbeat interval in seconds"
+        },
+        "agent_cleanup_interval": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 3600,
+          "description": "Agent cleanup interval in seconds"
+        },
+        "agent_types": {
+          "type": "object",
+          "properties": {
+            "assistant": {
+              "type": "object",
+              "properties": {
+                "max_instances": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "memory_limit": {
+                  "type": "integer",
+                  "minimum": 64,
+                  "maximum": 2048
+                }
+              },
+              "required": ["max_instances", "memory_limit"]
+            },
+            "data_processor": {
+              "type": "object",
+              "properties": {
+                "max_instances": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "memory_limit": {
+                  "type": "integer",
+                  "minimum": 64,
+                  "maximum": 2048
+                }
+              },
+              "required": ["max_instances", "memory_limit"]
+            },
+            "api": {
+              "type": "object",
+              "properties": {
+                "max_instances": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "memory_limit": {
+                  "type": "integer",
+                  "minimum": 64,
+                  "maximum": 2048
+                }
+              },
+              "required": ["max_instances", "memory_limit"]
+            },
+            "workflow": {
+              "type": "object",
+              "properties": {
+                "max_instances": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "memory_limit": {
+                  "type": "integer",
+                  "minimum": 64,
+                  "maximum": 2048
+                }
+              },
+              "required": ["max_instances", "memory_limit"]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": ["max_agents", "agent_timeout"],
+      "additionalProperties": false
+    },
+    "entanglement": {
+      "type": "object",
+      "properties": {
+        "max_entanglements": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "description": "Maximum number of entanglements"
+        },
+        "entanglement_timeout": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 3600,
+          "description": "Entanglement timeout in seconds"
+        },
+        "coordination_interval": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60,
+          "description": "Coordination interval in seconds"
+        },
+        "max_agents_per_entanglement": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 50,
+          "description": "Maximum agents per entanglement"
+        },
+        "cleanup_interval": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 3600,
+          "description": "Cleanup interval in seconds"
+        }
+      },
+      "required": ["max_entanglements", "entanglement_timeout"],
+      "additionalProperties": false
+    },
+    "websocket": {
+      "type": "object",
+      "properties": {
+        "max_connections": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 1000,
+          "description": "Maximum WebSocket connections"
+        },
+        "ping_interval": {
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 300,
+          "description": "Ping interval in seconds"
+        },
+        "ping_timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60,
+          "description": "Ping timeout in seconds"
+        },
+        "close_timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60,
+          "description": "Close timeout in seconds"
+        },
+        "max_message_size": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 10485760,
+          "description": "Maximum message size in bytes"
+        }
+      },
+      "required": ["max_connections"],
+      "additionalProperties": false
+    },
+    "audit": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable audit logging"
+        },
+        "log_level": {
+          "type": "string",
+          "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+          "description": "Audit log level"
+        },
+        "retention_days": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3650,
+          "description": "Audit log retention in days"
+        },
+        "max_log_size": {
+          "type": "integer",
+          "minimum": 1048576,
+          "description": "Maximum audit log size in bytes"
+        },
+        "compression": {
+          "type": "boolean",
+          "description": "Enable log compression"
+        },
+        "sensitive_fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Sensitive fields to mask"
+        }
+      },
+      "required": ["enabled"],
+      "additionalProperties": false
+    },
+    "monitoring": {
+      "type": "object",
+      "properties": {
+        "metrics_enabled": {
+          "type": "boolean",
+          "description": "Enable metrics collection"
+        },
+        "prometheus_enabled": {
+          "type": "boolean",
+          "description": "Enable Prometheus metrics"
+        },
+        "health_check_interval": {
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 300,
+          "description": "Health check interval in seconds"
+        },
+        "performance_monitoring": {
+          "type": "boolean",
+          "description": "Enable performance monitoring"
+        },
+        "alerting": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Enable alerting"
+            },
+            "cpu_threshold": {
+              "type": "integer",
+              "minimum": 50,
+              "maximum": 100,
+              "description": "CPU usage threshold percentage"
+            },
+            "memory_threshold": {
+              "type": "integer",
+              "minimum": 50,
+              "maximum": 100,
+              "description": "Memory usage threshold percentage"
+            },
+            "disk_threshold": {
+              "type": "integer",
+              "minimum": 50,
+              "maximum": 100,
+              "description": "Disk usage threshold percentage"
+            },
+            "error_rate_threshold": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "description": "Error rate threshold percentage"
+            }
+          },
+          "required": ["enabled"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["metrics_enabled"],
+      "additionalProperties": false
+    },
+    "raspberry_pi": {
+      "type": "object",
+      "properties": {
+        "hardware_monitoring": {
+          "type": "boolean",
+          "description": "Enable Raspberry Pi hardware monitoring"
+        },
+        "temperature_threshold": {
+          "type": "integer",
+          "minimum": 50,
+          "maximum": 100,
+          "description": "Temperature threshold in Celsius"
+        },
+        "cpu_frequency_monitoring": {
+          "type": "boolean",
+          "description": "Enable CPU frequency monitoring"
+        },
+        "memory_monitoring": {
+          "type": "boolean",
+          "description": "Enable memory monitoring"
+        },
+        "disk_monitoring": {
+          "type": "boolean",
+          "description": "Enable disk monitoring"
+        },
+        "network_monitoring": {
+          "type": "boolean",
+          "description": "Enable network monitoring"
+        },
+        "gpio_monitoring": {
+          "type": "boolean",
+          "description": "Enable GPIO monitoring"
+        }
+      },
+      "required": ["hardware_monitoring"],
+      "additionalProperties": false
+    },
+    "performance": {
+      "type": "object",
+      "properties": {
+        "cache_enabled": {
+          "type": "boolean",
+          "description": "Enable caching"
+        },
+        "cache_ttl": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 3600,
+          "description": "Cache TTL in seconds"
+        },
+        "cache_max_size": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 10000,
+          "description": "Maximum cache size"
+        },
+        "connection_pooling": {
+          "type": "boolean",
+          "description": "Enable connection pooling"
+        },
+        "async_processing": {
+          "type": "boolean",
+          "description": "Enable async processing"
+        },
+        "background_tasks": {
+          "type": "boolean",
+          "description": "Enable background tasks"
+        }
+      },
+      "required": ["cache_enabled"],
+      "additionalProperties": false
+    },
+    "development": {
+      "type": "object",
+      "properties": {
+        "auto_reload": {
+          "type": "boolean",
+          "description": "Enable auto reload"
+        },
+        "debug_mode": {
+          "type": "boolean",
+          "description": "Enable debug mode"
+        },
+        "test_mode": {
+          "type": "boolean",
+          "description": "Enable test mode"
+        },
+        "mock_services": {
+          "type": "boolean",
+          "description": "Use mock services"
+        },
+        "sample_data": {
+          "type": "boolean",
+          "description": "Load sample data"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["module", "database", "api", "security", "logging", "alex_os"],
+  "additionalProperties": false
+} 

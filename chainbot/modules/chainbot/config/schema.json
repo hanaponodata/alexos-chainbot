@@ -1,0 +1,525 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ChainBot Module Configuration Schema",
+  "description": "Configuration schema for ChainBot ALEX OS module",
+  "type": "object",
+  "properties": {
+    "module": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]+$",
+          "default": "chainbot"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "default": "1.0.0"
+        },
+        "description": {
+          "type": "string",
+          "default": "Advanced Workflow Orchestration Engine with AI Agent Management"
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "auto_start": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "required": ["name", "version"],
+      "additionalProperties": false
+    },
+    "database": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "default": "postgresql://localhost/chainbot"
+        },
+        "pool_size": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 10
+        },
+        "max_overflow": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "default": 20
+        },
+        "pool_timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 300,
+          "default": 30
+        },
+        "pool_recycle": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 7200,
+          "default": 3600
+        }
+      },
+      "required": ["url"],
+      "additionalProperties": false
+    },
+    "workflow": {
+      "type": "object",
+      "properties": {
+        "max_concurrent_executions": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50,
+          "default": 5
+        },
+        "default_timeout_hours": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 24,
+          "default": 1
+        },
+        "max_timeout_hours": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 168,
+          "default": 24
+        },
+        "retry_attempts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10,
+          "default": 3
+        },
+        "retry_delay_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 300,
+          "default": 5
+        },
+        "parallel_step_limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50,
+          "default": 10
+        },
+        "enable_audit_logging": {
+          "type": "boolean",
+          "default": true
+        },
+        "enable_websocket_events": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "agents": {
+      "type": "object",
+      "properties": {
+        "types": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["assistant", "data_processor", "api", "workflow"]
+          },
+          "minItems": 1,
+          "default": ["assistant", "data_processor", "api", "workflow"]
+        },
+        "max_instances_per_type": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 10
+        },
+        "max_total_instances": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 500,
+          "default": 50
+        },
+        "default_session_timeout_minutes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1440,
+          "default": 60
+        },
+        "enable_auto_cleanup": {
+          "type": "boolean",
+          "default": true
+        },
+        "cleanup_interval_minutes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1440,
+          "default": 30
+        }
+      },
+      "additionalProperties": false
+    },
+    "entanglement": {
+      "type": "object",
+      "properties": {
+        "max_agents_per_entanglement": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 100,
+          "default": 20
+        },
+        "max_entanglements": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "default": 100
+        },
+        "message_queue_size": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 10000,
+          "default": 1000
+        },
+        "message_retention_hours": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 168,
+          "default": 24
+        },
+        "enable_broadcast_messages": {
+          "type": "boolean",
+          "default": true
+        },
+        "enable_private_messages": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "websocket": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "max_connections": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "default": 100
+        },
+        "heartbeat_interval_seconds": {
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 300,
+          "default": 30
+        },
+        "connection_timeout_seconds": {
+          "type": "integer",
+          "minimum": 30,
+          "maximum": 3600,
+          "default": 300
+        },
+        "enable_broadcast": {
+          "type": "boolean",
+          "default": true
+        },
+        "enable_user_specific_events": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "audit": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "log_level": {
+          "type": "string",
+          "enum": ["DEBUG", "INFO", "WARNING", "ERROR"],
+          "default": "INFO"
+        },
+        "retention_days": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3650,
+          "default": 90
+        },
+        "enable_detailed_logging": {
+          "type": "boolean",
+          "default": true
+        },
+        "sensitive_fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": ["password", "api_key", "token", "secret"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "security": {
+      "type": "object",
+      "properties": {
+        "enable_rbac": {
+          "type": "boolean",
+          "default": true
+        },
+        "default_permissions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": ["chainbot:read", "chainbot:workflow:execute", "chainbot:agent:spawn"]
+        },
+        "admin_permissions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": ["chainbot:admin", "chainbot:workflow:create", "chainbot:workflow:delete", "chainbot:agent:terminate", "chainbot:entanglement:manage"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "performance": {
+      "type": "object",
+      "properties": {
+        "enable_caching": {
+          "type": "boolean",
+          "default": true
+        },
+        "cache_ttl_seconds": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 3600,
+          "default": 300
+        },
+        "enable_metrics": {
+          "type": "boolean",
+          "default": true
+        },
+        "metrics_interval_seconds": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 3600,
+          "default": 60
+        },
+        "enable_profiling": {
+          "type": "boolean",
+          "default": false
+        },
+        "max_memory_mb": {
+          "type": "integer",
+          "minimum": 64,
+          "maximum": 8192,
+          "default": 512
+        }
+      },
+      "additionalProperties": false
+    },
+    "raspberry_pi": {
+      "type": "object",
+      "properties": {
+        "enable_hardware_monitoring": {
+          "type": "boolean",
+          "default": true
+        },
+        "cpu_temp_threshold_celsius": {
+          "type": "integer",
+          "minimum": 50,
+          "maximum": 100,
+          "default": 80
+        },
+        "memory_threshold_percent": {
+          "type": "integer",
+          "minimum": 50,
+          "maximum": 100,
+          "default": 90
+        },
+        "disk_threshold_percent": {
+          "type": "integer",
+          "minimum": 50,
+          "maximum": 100,
+          "default": 85
+        },
+        "enable_gpio_integration": {
+          "type": "boolean",
+          "default": false
+        },
+        "gpio_pins": {
+          "type": "object",
+          "properties": {
+            "status_led": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 40,
+              "default": 18
+            },
+            "error_led": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 40,
+              "default": 23
+            },
+            "reset_button": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 40,
+              "default": 24
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "alex_os_integration": {
+      "type": "object",
+      "properties": {
+        "enable_event_bus": {
+          "type": "boolean",
+          "default": true
+        },
+        "enable_config_sync": {
+          "type": "boolean",
+          "default": true
+        },
+        "enable_health_reporting": {
+          "type": "boolean",
+          "default": true
+        },
+        "health_check_interval_seconds": {
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 300,
+          "default": 30
+        },
+        "enable_module_discovery": {
+          "type": "boolean",
+          "default": true
+        },
+        "module_registry_url": {
+          "type": "string",
+          "format": "uri",
+          "default": "http://localhost:8000/api/modules"
+        },
+        "event_topics": {
+          "type": "object",
+          "properties": {
+            "workflow_started": {
+              "type": "string",
+              "default": "chainbot.workflow.started"
+            },
+            "workflow_completed": {
+              "type": "string",
+              "default": "chainbot.workflow.completed"
+            },
+            "workflow_failed": {
+              "type": "string",
+              "default": "chainbot.workflow.failed"
+            },
+            "agent_spawned": {
+              "type": "string",
+              "default": "chainbot.agent.spawned"
+            },
+            "agent_terminated": {
+              "type": "string",
+              "default": "chainbot.agent.terminated"
+            },
+            "entanglement_created": {
+              "type": "string",
+              "default": "chainbot.entanglement.created"
+            },
+            "entanglement_message": {
+              "type": "string",
+              "default": "chainbot.entanglement.message"
+            }
+          },
+          "additionalProperties": false
+        },
+        "api_endpoints": {
+          "type": "object",
+          "properties": {
+            "workflows": {
+              "type": "string",
+              "default": "/api/chainbot/workflows"
+            },
+            "agents": {
+              "type": "string",
+              "default": "/api/chainbot/agents"
+            },
+            "entanglements": {
+              "type": "string",
+              "default": "/api/chainbot/entanglements"
+            },
+            "executions": {
+              "type": "string",
+              "default": "/api/chainbot/executions"
+            },
+            "health": {
+              "type": "string",
+              "default": "/api/chainbot/health"
+            },
+            "metrics": {
+              "type": "string",
+              "default": "/api/chainbot/metrics"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "logging": {
+      "type": "object",
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+          "default": "INFO"
+        },
+        "format": {
+          "type": "string",
+          "default": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        },
+        "file": {
+          "type": "string",
+          "default": "/var/log/alex_os/chainbot.log"
+        },
+        "max_size_mb": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "default": 100
+        },
+        "backup_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20,
+          "default": 5
+        },
+        "enable_console_output": {
+          "type": "boolean",
+          "default": true
+        },
+        "enable_file_output": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+} 

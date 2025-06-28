@@ -1,0 +1,131 @@
+groups:
+  - name: chainbot_alerts
+    rules:
+      # High CPU usage
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is above 80% for more than 5 minutes"
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is above 80% for more than 5 minutes"
+
+      # High disk usage
+      - alert: HighDiskUsage
+        expr: (node_filesystem_size_bytes - node_filesystem_free_bytes) / node_filesystem_size_bytes * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High disk usage on {{ $labels.instance }}"
+          description: "Disk usage is above 85% for more than 5 minutes"
+
+      # ChainBot API down
+      - alert: ChainBotAPIDown
+        expr: up{job="chainbot-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "ChainBot API is down"
+          description: "ChainBot API has been down for more than 1 minute"
+
+      # ChainBot health check failing
+      - alert: ChainBotHealthCheckFailing
+        expr: chainbot_health_score < 0.5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "ChainBot health check failing"
+          description: "ChainBot health score is below 0.5 for more than 2 minutes"
+
+      # High error rate
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) * 100 > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is above 5% for more than 5 minutes"
+
+      # Database connection issues
+      - alert: DatabaseConnectionIssues
+        expr: chainbot_database_connections_active / chainbot_database_connections_total > 0.9
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Database connection pool nearly full"
+          description: "Database connection pool usage is above 90%"
+
+      # Workflow execution failures
+      - alert: WorkflowExecutionFailures
+        expr: rate(chainbot_workflow_executions_failed[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High workflow execution failure rate"
+          description: "Workflow execution failure rate is above 0.1 per second"
+
+      # Agent spawn failures
+      - alert: AgentSpawnFailures
+        expr: rate(chainbot_agent_spawns_failed[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High agent spawn failure rate"
+          description: "Agent spawn failure rate is above 0.05 per second"
+
+      # WebSocket connection issues
+      - alert: WebSocketConnectionIssues
+        expr: chainbot_websocket_connections_active < 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "No active WebSocket connections"
+          description: "No active WebSocket connections for more than 2 minutes"
+
+      # High response time
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High response time detected"
+          description: "95th percentile response time is above 2 seconds"
+
+      # Raspberry Pi specific alerts
+      - alert: HighTemperature
+        expr: node_hwmon_temp_celsius > 70
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High temperature on Raspberry Pi"
+          description: "Temperature is above 70°C for more than 5 minutes"
+
+      - alert: LowDiskSpace
+        expr: (node_filesystem_size_bytes - node_filesystem_free_bytes) / node_filesystem_size_bytes * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical disk space usage"
+          description: "Disk usage is above 90% - immediate action required" 
