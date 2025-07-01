@@ -61,3 +61,8 @@ mkdocs-material>=9.4.0
 click>=8.1.0
 rich>=13.7.0
 typer>=0.9.0
+
+# Added from the code block
+flask==3.1.1
+flask-cors==6.0.1
+requests==2.32.4

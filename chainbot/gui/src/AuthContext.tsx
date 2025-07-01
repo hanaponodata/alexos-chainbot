@@ -17,10 +17,22 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem('token'));
+  // DEV BYPASS: Always set a fake user and token for development
+  const devBypass = true; // Set to false to disable bypass
+
+  const [user, setUser] = useState<User | null>(devBypass ? {
+    id: 1,
+    username: 'devuser',
+    is_superuser: true
+  } : null);
+  const [token, setToken] = useState<string | null>(devBypass ? 'dev-token' : localStorage.getItem('token'));
 
   useEffect(() => {
+    if (devBypass) {
+      setUser({ id: 1, username: 'devuser', is_superuser: true });
+      setToken('dev-token');
+      return;
+    }
     if (token) {
       localStorage.setItem('token', token);
       // Optionally decode token to get user info
@@ -34,9 +46,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.removeItem('token');
       setUser(null);
     }
-  }, [token]);
+  }, [token, devBypass]);
 
   const login = async (username: string, password: string) => {
+    if (devBypass) {
+      setUser({ id: 1, username: 'devuser', is_superuser: true });
+      setToken('dev-token');
+      return true;
+    }
     const res = await fetch('/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -51,6 +68,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const register = async (username: string, email: string, password: string) => {
+    if (devBypass) {
+      setUser({ id: 1, username: 'devuser', is_superuser: true });
+      setToken('dev-token');
+      return true;
+    }
     const res = await fetch('/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -60,6 +82,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
+    if (devBypass) {
+      setUser({ id: 1, username: 'devuser', is_superuser: true });
+      setToken('dev-token');
+      return;
+    }
     setToken(null);
   };
 

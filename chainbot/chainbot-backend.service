@@ -1,0 +1,18 @@
+[Unit]
+Description=ChainBot Backend Service
+After=network.target
+
+[Service]
+Type=simple
+User=alex
+Group=alex
+WorkingDirectory=/opt/alexos/modules/chainbot
+Environment=PATH=/opt/alexos/modules/chainbot/venv/bin
+ExecStart=/opt/alexos/modules/chainbot/venv/bin/python3 chainbot_backend.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target 

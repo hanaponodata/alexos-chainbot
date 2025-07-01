@@ -50,7 +50,7 @@ interface Agent {
 }
 
 const WorkflowBuilder: React.FC = () => {
-  const { user, token } = useAuth();
+  const { token } = useAuth();
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
@@ -259,23 +259,7 @@ const WorkflowBuilder: React.FC = () => {
 
   const deleteNode = (nodeId: string) => {
     setNodes(prev => prev.filter(node => node.id !== nodeId));
-    setEdges(prev => prev.filter(edge => 
-      edge.source !== nodeId && edge.target !== nodeId
-    ));
-  };
-
-  const addEdge = (sourceId: string, targetId: string) => {
-    const newEdge: WorkflowEdge = {
-      id: `edge_${Date.now()}`,
-      source: sourceId,
-      target: targetId
-    };
-
-    setEdges(prev => [...prev, newEdge]);
-  };
-
-  const deleteEdge = (edgeId: string) => {
-    setEdges(prev => prev.filter(edge => edge.id !== edgeId));
+    setEdges(prev => prev.filter(edge => edge.source !== nodeId && edge.target !== nodeId));
   };
 
   const handleNodeMouseDown = (node: WorkflowNode, event: React.MouseEvent) => {

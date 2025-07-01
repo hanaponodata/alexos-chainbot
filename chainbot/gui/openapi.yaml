@@ -1,0 +1,331 @@
+openapi: 3.0.3
+info:
+  title: ChainBot GUI Unified API
+  version: '1.0.0'
+  description: |
+    Unified backend API for ChainBot GUI, covering plugins, workflows, persistent memory, and analytics.
+servers:
+  - url: http://localhost:8000/api
+    description: Local development server
+
+paths:
+  /plugins:
+    get:
+      summary: List all plugins
+      responses:
+        '200':
+          description: List of plugins
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Plugin'
+    post:
+      summary: Register a new plugin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Plugin'
+      responses:
+        '201':
+          description: Plugin registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Plugin'
+  /plugins/{id}:
+    put:
+      summary: Update plugin config
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Plugin'
+      responses:
+        '200':
+          description: Plugin updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Plugin'
+    delete:
+      summary: Uninstall plugin
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Plugin uninstalled
+
+  /workflows:
+    get:
+      summary: List workflows
+      responses:
+        '200':
+          description: List of workflows
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Workflow'
+    post:
+      summary: Create workflow
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Workflow'
+      responses:
+        '201':
+          description: Workflow created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+  /workflows/{id}:
+    put:
+      summary: Update workflow
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Workflow'
+      responses:
+        '200':
+          description: Workflow updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+    delete:
+      summary: Delete workflow
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Workflow deleted
+
+  /memory/contexts:
+    get:
+      summary: List memory contexts
+      responses:
+        '200':
+          description: List of memory contexts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MemoryContext'
+    post:
+      summary: Add context
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemoryContext'
+      responses:
+        '201':
+          description: Context added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemoryContext'
+  /memory/contexts/{id}:
+    put:
+      summary: Update context
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemoryContext'
+      responses:
+        '200':
+          description: Context updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemoryContext'
+    delete:
+      summary: Delete context
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Context deleted
+
+  /analytics/events:
+    get:
+      summary: List analytics events
+      responses:
+        '200':
+          description: List of analytics events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AnalyticsEvent'
+    post:
+      summary: Log new event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalyticsEvent'
+      responses:
+        '201':
+          description: Event logged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsEvent'
+
+components:
+  schemas:
+    Plugin:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        version:
+          type: string
+        description:
+          type: string
+        author:
+          type: string
+        enabled:
+          type: boolean
+        type:
+          type: string
+          enum: [panel, tool, workflow, theme, integration]
+        entryPoint:
+          type: string
+        config:
+          type: object
+        dependencies:
+          type: array
+          items:
+            type: string
+        permissions:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    Workflow:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkflowStep'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    WorkflowStep:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        config:
+          type: object
+    MemoryContext:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [conversation, code, workflow, system, user_preference]
+        title:
+          type: string
+        content:
+          type: object
+        metadata:
+          type: object
+        tags:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        priority:
+          type: integer
+        accessCount:
+          type: integer
+        lastAccessed:
+          type: string
+          format: date-time
+    AnalyticsEvent:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        userId:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        data:
+          type: object 

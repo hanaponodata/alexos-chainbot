@@ -1,0 +1,16 @@
+
+> gui@0.0.0 dev
+> vite
+
+
+  VITE v5.4.19  ready in 87 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: http://10.42.69.147:5173/
+11:14:30 AM [vite] .env changed, restarting server...
+11:14:30 AM [vite] .env changed, restarting server...
+11:14:30 AM [vite] server restarted.
+11:14:30 AM [vite] .env changed, restarting server...
+11:14:30 AM [vite] server restarted.
+11:40:18 AM [vite] .env changed, restarting server...
+11:40:18 AM [vite] server restarted.

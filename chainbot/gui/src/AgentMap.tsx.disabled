@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useWebSocket } from '../hooks/useWebSocket';
-import { AgentNode } from './components/AgentNode';
-import { ConnectionLine } from './components/ConnectionLine';
-import { AgentDetails } from './components/AgentDetails';
-import { AgentToolbar } from './components/AgentToolbar';
-import { StatusLegend } from './components/StatusLegend';
+import AgentNode from './components/AgentNode';
+import ConnectionLine from './components/ConnectionLine';
+import AgentDetails from './components/AgentDetails';
+import AgentToolbar from './components/AgentToolbar';
+import StatusLegend from './components/StatusLegend';
 import { useAgentMap } from '../hooks/useAgentMap';
 import { Agent, AgentStatus, AgentConnection } from '../types/agent';
 import { WebSocketMessage } from '../types/websocket';

@@ -165,10 +165,10 @@ const CenterPaneChat: React.FC = () => {
           content: response.content,
           sender: 'ai_agent',
           timestamp: new Date(),
-          agent_id: response.agent_id,
-          agent_name: response.agent_name,
-          agent_type: response.agent_type,
-          workflow_id: response.workflow_id,
+          agent_id: 'agent_id' in response ? response.agent_id : undefined,
+          agent_name: 'agent_name' in response ? response.agent_name : undefined,
+          agent_type: 'agent_type' in response ? response.agent_type : undefined,
+          workflow_id: 'workflow_id' in response ? response.workflow_id : undefined,
           metadata: response.metadata
         };
 

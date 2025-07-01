@@ -1,0 +1,416 @@
+name: ChainBot CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop, beta ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [ published ]
+
+env:
+  NODE_VERSION: '18'
+  ELECTRON_VERSION: '28.0.0'
+
+jobs:
+  # Code Quality & Testing
+  test:
+    name: Test & Quality Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: |
+        cd chainbot/gui
+        npm ci
+        
+    - name: Run linting
+      run: |
+        cd chainbot/gui
+        npm run lint
+        
+    - name: Run type checking
+      run: |
+        cd chainbot/gui
+        npm run type-check
+        
+    - name: Run unit tests
+      run: |
+        cd chainbot/gui
+        npm run test:unit
+        
+    - name: Run integration tests
+      run: |
+        cd chainbot/gui
+        npm run test:integration
+        
+    - name: Upload test coverage
+      uses: codecov/codecov-action@v3
+      with:
+        file: chainbot/gui/coverage/lcov.info
+        flags: unittests
+        name: codecov-umbrella
+
+  # Security Audit
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: |
+        cd chainbot/gui
+        npm ci
+        
+    - name: Run security audit
+      run: |
+        cd chainbot/gui
+        npm audit --audit-level=moderate
+        
+    - name: Run Snyk security scan
+      uses: snyk/actions/node@master
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      with:
+        args: --severity-threshold=high
+
+  # Build & Package
+  build:
+    name: Build Application
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+        
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: |
+        cd chainbot/gui
+        npm ci
+        
+    - name: Build application
+      run: |
+        cd chainbot/gui
+        npm run build
+        
+    - name: Package application
+      run: |
+        cd chainbot/gui
+        npm run electron:build
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: chainbot-build-${{ matrix.os }}
+        path: chainbot/gui/dist/
+
+  # MacOS Code Signing & Notarization
+  macos-sign:
+    name: MacOS Code Signing
+    runs-on: macos-latest
+    needs: build
+    if: github.event_name == 'release' && matrix.os == 'macos-latest'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: chainbot-build-macos-latest
+        
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: |
+        cd chainbot/gui
+        npm ci
+        
+    - name: Code sign application
+      run: |
+        cd chainbot/gui
+        npm run electron:sign
+      env:
+        MACOS_IDENTITY: ${{ secrets.MACOS_IDENTITY }}
+        MACOS_KEYCHAIN_PASSWORD: ${{ secrets.MACOS_KEYCHAIN_PASSWORD }}
+        
+    - name: Notarize application
+      run: |
+        cd chainbot/gui
+        npm run electron:notarize
+      env:
+        APPLE_ID: ${{ secrets.APPLE_ID }}
+        APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        
+    - name: Upload signed artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: chainbot-signed-macos
+        path: chainbot/gui/dist/
+
+  # Release Management
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [test, security, build, macos-sign]
+    if: github.event_name == 'release'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download all artifacts
+      uses: actions/download-artifact@v3
+      with:
+        path: artifacts/
+        
+    - name: Generate release notes
+      id: release_notes
+      run: |
+        echo "## What's New in v${{ github.event.release.tag_name }}" >> RELEASE_NOTES.md
+        echo "" >> RELEASE_NOTES.md
+        echo "### Features" >> RELEASE_NOTES.md
+        echo "- Enhanced AI agent orchestration" >> RELEASE_NOTES.md
+        echo "- Improved code editor with Monaco integration" >> RELEASE_NOTES.md
+        echo "- Advanced workflow builder" >> RELEASE_NOTES.md
+        echo "- Real-time collaboration features" >> RELEASE_NOTES.md
+        echo "" >> RELEASE_NOTES.md
+        echo "### Bug Fixes" >> RELEASE_NOTES.md
+        echo "- Fixed various UI/UX issues" >> RELEASE_NOTES.md
+        echo "- Improved performance and stability" >> RELEASE_NOTES.md
+        echo "" >> RELEASE_NOTES.md
+        echo "### Technical Improvements" >> RELEASE_NOTES.md
+        echo "- Updated to React 19" >> RELEASE_NOTES.md
+        echo "- Enhanced TypeScript support" >> RELEASE_NOTES.md
+        echo "- Improved build system" >> RELEASE_NOTES.md
+        
+    - name: Create GitHub Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.event.release.tag_name }}
+        release_name: ChainBot ${{ github.event.release.tag_name }}
+        body_path: RELEASE_NOTES.md
+        draft: false
+        prerelease: ${{ contains(github.ref, 'beta') }}
+        
+    - name: Upload release assets
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./artifacts/chainbot-signed-macos/ChainBot-*.dmg
+        asset_name: ChainBot-${{ github.event.release.tag_name }}-mac.dmg
+        asset_content_type: application/octet-stream
+
+  # App Store Submission
+  app-store:
+    name: App Store Submission
+    runs-on: macos-latest
+    needs: release
+    if: github.event_name == 'release' && !contains(github.ref, 'beta')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download signed artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: chainbot-signed-macos
+        
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: |
+        cd chainbot/gui
+        npm ci
+        
+    - name: Prepare App Store metadata
+      run: |
+        cd chainbot/gui
+        npm run app-store:prepare
+      env:
+        APPLE_ID: ${{ secrets.APPLE_ID }}
+        APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        
+    - name: Submit to App Store
+      run: |
+        cd chainbot/gui
+        npm run app-store:submit
+      env:
+        APPLE_ID: ${{ secrets.APPLE_ID }}
+        APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+  # Deployment
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: release
+    if: github.event_name == 'release' && github.ref == 'refs/tags/v*'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: |
+        cd chainbot/gui
+        npm ci
+        
+    - name: Deploy to CDN
+      run: |
+        cd chainbot/gui
+        npm run deploy:cdn
+      env:
+        CDN_API_KEY: ${{ secrets.CDN_API_KEY }}
+        CDN_URL: ${{ secrets.CDN_URL }}
+        
+    - name: Update download page
+      run: |
+        cd chainbot/gui
+        npm run deploy:website
+      env:
+        WEBSITE_API_KEY: ${{ secrets.WEBSITE_API_KEY }}
+        
+    - name: Notify team
+      run: |
+        curl -X POST ${{ secrets.SLACK_WEBHOOK }} \
+          -H 'Content-type: application/json' \
+          -d '{
+            "text": "🎉 ChainBot v${{ github.event.release.tag_name }} has been released and deployed!",
+            "attachments": [{
+              "title": "Download",
+              "title_link": "https://chainbot.alexos.com/download",
+              "text": "Get the latest version now!"
+            }]
+          }'
+
+  # Performance Monitoring
+  performance:
+    name: Performance Test
+    runs-on: ubuntu-latest
+    needs: build
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: |
+        cd chainbot/gui
+        npm ci
+        
+    - name: Run performance tests
+      run: |
+        cd chainbot/gui
+        npm run test:performance
+        
+    - name: Upload performance report
+      uses: actions/upload-artifact@v3
+      with:
+        name: performance-report
+        path: chainbot/gui/performance-report.json
+
+  # Dependency Updates
+  dependencies:
+    name: Update Dependencies
+    runs-on: ubuntu-latest
+    schedule:
+      - cron: '0 2 * * 1' # Every Monday at 2 AM
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: |
+        cd chainbot/gui
+        npm ci
+        
+    - name: Check for outdated dependencies
+      run: |
+        cd chainbot/gui
+        npm outdated
+        
+    - name: Create dependency update PR
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: 'chore: update dependencies'
+        title: 'chore: update dependencies'
+        body: |
+          This PR updates outdated dependencies to their latest versions.
+          
+          ## Changes
+          - Updated npm packages to latest versions
+          - Fixed security vulnerabilities
+          - Improved performance and stability
+          
+          ## Testing
+          - [ ] All tests pass
+          - [ ] No breaking changes
+          - [ ] Performance maintained
+        branch: chore/update-dependencies
+        delete-branch: true 

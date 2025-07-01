@@ -7,7 +7,7 @@ FastAPI application with ALEX OS integration, GPT services, and GUI support.
 import asyncio
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
@@ -23,6 +23,7 @@ from .services import (
     initialize_services, get_agent_brain, get_websocket_manager,
     initialize_alex_os_registration
 )
+from .models.user import User
 
 # Configure logging
 logging_config = config.get_logging_config()
@@ -255,6 +256,42 @@ async def http_exception_handler(request, exc):
         status_code=exc.status_code,
         content={"detail": exc.detail}
     )
+
+@app.post("/api/chat")
+async def chat_endpoint(request: Request):
+    """Proxy endpoint for frontend chat requests (model, messages, stream)"""
+    try:
+        data = await request.json()
+        model = data.get("model", "llama3:latest")
+        messages = data.get("messages", [])
+        stream = data.get("stream", False)
+        # Use the last user message as the prompt
+        prompt = ""
+        for m in reversed(messages):
+            if m.get("role") == "user":
+                prompt = m.get("content", "")
+                break
+        if not prompt:
+            return JSONResponse({"error": "No user message found."}, status_code=400)
+        # Use a default agent_id (or allow override)
+        agent_id = "chainbot"
+        # Call the completion logic (reuse gpt_integration)
+        from .api.gpt_integration import generate_completion, CompletionRequest
+        completion_req = CompletionRequest(
+            prompt=prompt,
+            agent_id=agent_id,
+            provider=None,
+            model=model,
+            conversation_history=messages,
+            context_data={},
+            metadata={}
+        )
+        # Call the completion endpoint (simulate dependency injection)
+        dummy_user = User(username="frontend", email="frontend@localhost", hashed_password="dummy", is_active=True, is_superuser=False)
+        response = await generate_completion(completion_req, current_user=dummy_user)
+        return {"response": response.content}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 if __name__ == "__main__":
     # Get server configuration

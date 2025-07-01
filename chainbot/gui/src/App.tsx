@@ -1,349 +1,389 @@
-import React, { useState, useEffect } from 'react';
-import './App.css';
-import { AuthProvider, useAuth } from './AuthContext';
-import LoginForm from './LoginForm';
-import RegisterForm from './RegisterForm';
-import LeftPaneSessions from './LeftPaneSessions';
-import CenterPaneChat from './CenterPaneChat';
-import RightPaneLogs from './RightPaneLogs';
-import WorkflowBuilder from './WorkflowBuilder';
-import AgentManager from './AgentManager';
-import WatchtowerManager from './WatchtowerManager';
-import ChatGPTDataImporter from './ChatGPTDataImporter';
+import React, { useState, useCallback } from 'react';
+import { MessageSquare, Code, Brain, Package, Search, Settings, Keyboard, Bot, Zap, Wrench, Users, ChevronRight, ChevronLeft } from 'lucide-react';
+import { usePersistentMemory } from './hooks/usePersistentMemory';
+import { PluginManager } from './components/PluginManager/PluginManager';
+import { usePluginStore } from './stores/pluginStore';
+import { MemoryManager } from './components/MemoryManager/MemoryManager';
+import { AnalyticsProvider } from './contexts/AnalyticsContext';
+import { ModelProvider } from './contexts/ModelContext';
+import { PluginProvider, usePlugins } from './contexts/PluginContext';
+import { WorkflowProvider } from './contexts/WorkflowContext';
+import { SuggestionsProvider } from './contexts/SuggestionsContext';
+import { PreferencesProvider, usePreferences } from './contexts/PreferencesContext';
+import { useKeyboardShortcuts, type KeyboardShortcut } from './hooks/useKeyboardShortcuts';
+import PreferencesPanel from './components/PreferencesPanel/PreferencesPanel';
+import KeyboardShortcutsHelp from './components/KeyboardShortcutsHelp/KeyboardShortcutsHelp';
+import CommandPaletteRoot from './components/CommandPalette/CommandPaletteRoot';
 
-// Extend window object for Electron APIs
-declare global {
-  interface Window {
-    electronAPI?: {
-      piConnect: () => Promise<{ success: boolean; error?: string }>;
-      piExecute: (command: string) => Promise<{ success: boolean; result?: string; error?: string }>;
-      alexosStart: () => Promise<{ success: boolean; result?: string; error?: string }>;
-      alexosStop: () => Promise<{ success: boolean; result?: string; error?: string }>;
-      alexosStatus: () => Promise<{ success: boolean; status?: string; error?: string }>;
-      deployWorkflow: (workflowData: any) => Promise<{ success: boolean; result?: string; error?: string }>;
-      watchtowerStatus: () => Promise<{ success: boolean; status?: string; error?: string }>;
-      watchtowerStart: () => Promise<{ success: boolean; result?: string; error?: string }>;
-      watchtowerStop: () => Promise<{ success: boolean; result?: string; error?: string }>;
-      watchtowerRestart: () => Promise<{ success: boolean; result?: string; error?: string }>;
-      watchtowerLogs: (lines?: number) => Promise<{ success: boolean; logs?: string; error?: string }>;
-      watchtowerConfig: () => Promise<{ success: boolean; config?: string; error?: string }>;
-      watchtowerUpdateConfig: (configYaml: string) => Promise<{ success: boolean; result?: string; error?: string }>;
-      watchtowerMetrics: () => Promise<{ success: boolean; metrics?: string; error?: string }>;
-      watchtowerAlerts: () => Promise<{ success: boolean; alerts?: string; error?: string }>;
-      watchtowerTargets: () => Promise<{ success: boolean; targets?: string; error?: string }>;
-      watchtowerTestConnection: () => Promise<{ success: boolean; result?: string; error?: string }>;
-      watchtowerDashboardUrl: () => Promise<{ success: boolean; url?: string; error?: string }>;
-      watchtowerExecuteCommand: (command: string) => Promise<{ success: boolean; result?: string; error?: string }>;
-      watchtowerVersion: () => Promise<{ success: boolean; version?: string; error?: string }>;
-      watchtowerInstall: () => Promise<{ success: boolean; result?: string; error?: string }>;
-      watchtowerUninstall: () => Promise<{ success: boolean; result?: string; error?: string }>;
-      onNewWorkflow: (callback: () => void) => void;
-      onOpenWorkflow: (callback: (workflow: any) => void) => void;
-      onSaveWorkflow: (callback: () => void) => void;
-      onExportToAlex: (callback: () => void) => void;
-      removeAllListeners: (channel: string) => void;
-    };
-    platform?: {
-      isMac: boolean;
-      isWindows: boolean;
-      isLinux: boolean;
-    };
-  }
-}
+// New Agent Workspace Components
+import ChatWorkspace from './components/workspaces/ChatWorkspace';
+import DevBotWorkspace from './components/workspaces/DevBotWorkspace';
+import ChainBotWorkspace from './components/workspaces/ChainBotWorkspace';
+import HarryWorkspace from './components/workspaces/HarryWorkspace';
+import SandboxWorkspace from './components/workspaces/SandboxWorkspace';
 
-const MainApp: React.FC = () => {
-  const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('chat');
-  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
-  const [piConnected, setPiConnected] = useState(false);
-  const [alexosStatus, setAlexosStatus] = useState('unknown');
-  const [watchtowerStatus, setWatchtowerStatus] = useState('unknown');
-  const [piStatus, setPiStatus] = useState('disconnected');
+// New navigation structure
+const NAVIGATION_TABS = [
+  { 
+    id: 'chat', 
+    label: 'Chat', 
+    icon: <MessageSquare className="w-5 h-5" />,
+    description: 'Simple ChatGPT-style interface with model selection'
+  },
+  { 
+    id: 'devbot', 
+    label: 'DevBot', 
+    icon: <Code className="w-5 h-5" />,
+    description: 'Animated coding assistant with code editor'
+  },
+  { 
+    id: 'chainbot', 
+    label: 'ChainBot', 
+    icon: <Brain className="w-5 h-5" />,
+    description: 'Visual workflow builder with animated guidance'
+  },
+  { 
+    id: 'harry', 
+    label: 'Harry the Handyman', 
+    icon: <Wrench className="w-5 h-5" />,
+    description: 'Advanced coding and project management assistant'
+  },
+  { 
+    id: 'sandbox', 
+    label: 'Sandbox', 
+    icon: <Zap className="w-5 h-5" />,
+    description: 'Graphical AI agent chaining and experimentation'
+  },
+];
 
-  // Check if running in Electron
-  const isElectron = window.electronAPI !== undefined;
+type Screen = 'chat' | 'devbot' | 'chainbot' | 'harry' | 'sandbox';
 
-  useEffect(() => {
-    if (isElectron) {
-      // Set up Electron event listeners
-      window.electronAPI?.onNewWorkflow(() => {
-        setActiveTab('workflows');
-        // Trigger new workflow creation
-      });
+const AppContent: React.FC = () => {
+  const [activeScreen, setActiveScreen] = useState<Screen>('chat');
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [showPluginManager, setShowPluginManager] = useState(false);
+  const [showPreferences, setShowPreferences] = useState(false);
+  const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const { memoryStats } = usePersistentMemory();
+  const { activePanels } = usePluginStore();
+  const { plugins, enabled } = usePlugins();
+  const { preferences } = usePreferences();
 
-      window.electronAPI?.onOpenWorkflow(() => {
-        setActiveTab('workflows');
-        // Load workflow data
-      });
+  // Initialize sidebar collapsed state from preferences
+  React.useEffect(() => {
+    setSidebarCollapsed(preferences.sidebarCollapsed);
+  }, [preferences.sidebarCollapsed]);
 
-      window.electronAPI?.onSaveWorkflow(() => {
-        // Trigger workflow save
-      });
-
-      window.electronAPI?.onExportToAlex(() => {
-        // Trigger export to ALEX OS
-      });
-
-      // Cleanup listeners on unmount
-      return () => {
-        window.electronAPI?.removeAllListeners('new-workflow');
-        window.electronAPI?.removeAllListeners('open-workflow');
-        window.electronAPI?.removeAllListeners('save-workflow');
-        window.electronAPI?.removeAllListeners('export-to-alex');
-      };
+  // Enhanced keyboard shortcuts for new navigation
+  const shortcuts: KeyboardShortcut[] = [
+    {
+      key: 'k',
+      ctrlKey: true,
+      action: () => setShowCommandPalette(true),
+      description: 'Open Command Palette',
+      category: 'navigation'
+    },
+    {
+      key: 'Escape',
+      action: () => {
+        setShowCommandPalette(false);
+        setShowPluginManager(false);
+        setShowPreferences(false);
+        setShowKeyboardHelp(false);
+      },
+      description: 'Close modals',
+      category: 'navigation'
+    },
+    {
+      key: 'b',
+      ctrlKey: true,
+      action: () => setSidebarCollapsed(!sidebarCollapsed),
+      description: 'Toggle Sidebar',
+      category: 'navigation'
+    },
+    {
+      key: 'n',
+      ctrlKey: true,
+      action: () => setActiveScreen('chat'),
+      description: 'New Chat',
+      category: 'actions'
+    },
+    {
+      key: 's',
+      ctrlKey: true,
+      action: () => {
+        console.log('Save triggered');
+      },
+      description: 'Save',
+      category: 'actions'
+    },
+    {
+      key: '1',
+      ctrlKey: true,
+      action: () => setActiveScreen('chat'),
+      description: 'Switch to Chat',
+      category: 'navigation'
+    },
+    {
+      key: '2',
+      ctrlKey: true,
+      action: () => setActiveScreen('devbot'),
+      description: 'Switch to DevBot',
+      category: 'navigation'
+    },
+    {
+      key: '3',
+      ctrlKey: true,
+      action: () => setActiveScreen('chainbot'),
+      description: 'Switch to ChainBot',
+      category: 'navigation'
+    },
+    {
+      key: '4',
+      ctrlKey: true,
+      action: () => setActiveScreen('harry'),
+      description: 'Switch to Harry',
+      category: 'navigation'
+    },
+    {
+      key: '5',
+      ctrlKey: true,
+      action: () => setActiveScreen('sandbox'),
+      description: 'Switch to Sandbox',
+      category: 'navigation'
+    },
+    {
+      key: ',',
+      ctrlKey: true,
+      action: () => setShowPreferences(true),
+      description: 'Open Preferences',
+      category: 'system'
+    },
+    {
+      key: 'p',
+      ctrlKey: true,
+      action: () => setShowPluginManager(true),
+      description: 'Open Plugin Manager',
+      category: 'tools'
+    },
+    {
+      key: 'F1',
+      action: () => setShowPreferences(true),
+      description: 'Open Preferences',
+      category: 'system'
+    },
+    {
+      key: 'F2',
+      action: () => setShowPluginManager(true),
+      description: 'Open Plugin Manager',
+      category: 'tools'
+    },
+    {
+      key: '?',
+      ctrlKey: true,
+      action: () => setShowKeyboardHelp(true),
+      description: 'Show Keyboard Shortcuts',
+      category: 'system'
     }
-  }, [isElectron]);
+  ];
 
-  const handlePiConnect = async () => {
-    if (!isElectron) return;
-    
-    try {
-      setPiStatus('connecting');
-      const result = await window.electronAPI!.piConnect();
-      if (result.success) {
-        setPiConnected(true);
-        setPiStatus('connected');
-        // Check ALEX OS status
-        const statusResult = await window.electronAPI!.alexosStatus();
-        if (statusResult.success) {
-          setAlexosStatus(statusResult.status?.includes('active') ? 'running' : 'stopped');
-        }
-        // Check Watchtower status
-        const watchtowerResult = await window.electronAPI!.watchtowerStatus();
-        if (watchtowerResult.success) {
-          setWatchtowerStatus(watchtowerResult.status?.includes('active') ? 'running' : 'stopped');
-        }
-      } else {
-        setPiStatus('error');
-        console.error('Pi connection failed:', result.error);
-      }
-    } catch (error) {
-      setPiStatus('error');
-      console.error('Pi connection error:', error);
+  useKeyboardShortcuts({
+    shortcuts,
+    enabled: preferences.keyboardShortcutsEnabled
+  });
+
+  const handleCloseCommandPalette = useCallback(() => setShowCommandPalette(false), []);
+
+  const handleSessionHandoff = useCallback((sessionData: any) => {
+    console.log('Session handoff requested:', sessionData);
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(JSON.stringify(sessionData, null, 2));
+      alert('Session data copied to clipboard!');
     }
-  };
+  }, []);
 
-  const handleAlexosStart = async () => {
-    if (!isElectron) return;
-    
-    try {
-      const result = await window.electronAPI!.alexosStart();
-      if (result.success) {
-        setAlexosStatus('running');
-      } else {
-        console.error('Failed to start ALEX OS:', result.error);
-      }
-    } catch (error) {
-      console.error('ALEX OS start error:', error);
-    }
-  };
-
-  const handleAlexosStop = async () => {
-    if (!isElectron) return;
-    
-    try {
-      const result = await window.electronAPI!.alexosStop();
-      if (result.success) {
-        setAlexosStatus('stopped');
-      } else {
-        console.error('Failed to stop ALEX OS:', result.error);
-      }
-    } catch (error) {
-      console.error('ALEX OS stop error:', error);
-    }
-  };
-
-  const handleWatchtowerStart = async () => {
-    if (!isElectron) return;
-    
-    try {
-      const result = await window.electronAPI!.watchtowerStart();
-      if (result.success) {
-        setWatchtowerStatus('running');
-      } else {
-        console.error('Failed to start Watchtower:', result.error);
-      }
-    } catch (error) {
-      console.error('Watchtower start error:', error);
-    }
-  };
-
-  const handleWatchtowerStop = async () => {
-    if (!isElectron) return;
-    
-    try {
-      const result = await window.electronAPI!.watchtowerStop();
-      if (result.success) {
-        setWatchtowerStatus('stopped');
-      } else {
-        console.error('Failed to stop Watchtower:', result.error);
-      }
-    } catch (error) {
-      console.error('Watchtower stop error:', error);
-    }
-  };
-
-  const handleDeployWorkflow = async (workflowData: any) => {
-    if (!isElectron) return;
-    
-    try {
-      const result = await window.electronAPI!.deployWorkflow(workflowData);
-      if (result.success) {
-        console.log('Workflow deployed successfully');
-      } else {
-        console.error('Failed to deploy workflow:', result.error);
-      }
-    } catch (error) {
-      console.error('Workflow deployment error:', error);
-    }
-  };
-
-  if (!user) {
-    return (
-      <div className="auth-container">
-        <div className="auth-box">
-          <h1>ChainBot</h1>
-          <p>AI Agent Orchestration Platform</p>
-          <LoginForm />
-          <RegisterForm />
-        </div>
-      </div>
-    );
-  }
+  // Global controls component to be used in each workspace
+  const GlobalControls = () => (
+    <div className="flex items-center space-x-2">
+      <button
+        onClick={() => setShowPreferences(true)}
+        className="flex items-center justify-center w-8 h-8 text-gray-400 hover:text-white hover:bg-[#23232a] rounded transition-colors"
+        title="Preferences (Ctrl+,)"
+      >
+        <Settings className="w-4 h-4" />
+      </button>
+      <button
+        onClick={() => setShowKeyboardHelp(true)}
+        className="flex items-center justify-center w-8 h-8 text-gray-400 hover:text-white hover:bg-[#23232a] rounded transition-colors"
+        title="Keyboard Shortcuts (Ctrl+?)"
+      >
+        <Keyboard className="w-4 h-4" />
+      </button>
+      <button
+        onClick={() => setShowPluginManager(true)}
+        className="flex items-center justify-center w-8 h-8 text-gray-400 hover:text-white hover:bg-[#23232a] rounded transition-colors"
+        title="Plugin Manager (Ctrl+P)"
+      >
+        <Package className="w-4 h-4" />
+      </button>
+      <button
+        onClick={() => setShowCommandPalette(true)}
+        className="flex items-center justify-center w-8 h-8 text-gray-400 hover:text-white hover:bg-[#23232a] rounded transition-colors"
+        title="Command Palette (Ctrl+K)"
+      >
+        <Search className="w-4 h-4" />
+      </button>
+    </div>
+  );
 
   return (
-    <div className="app">
-      {/* Pi Integration Status Bar (Electron only) */}
-      {isElectron && (
-        <div className="pi-status-bar">
-          <div className="pi-status-item">
-            <span className={`status-indicator ${piStatus}`}></span>
-            <span>Pi: {piStatus}</span>
-            {piStatus === 'disconnected' && (
-              <button onClick={handlePiConnect} className="connect-btn">
-                Connect
-              </button>
-            )}
+    <div className="h-screen min-h-screen flex bg-black overflow-x-hidden">
+      {/* Sidebar */}
+      <aside className={`flex flex-col items-center py-4 border-r border-[#2a2b32] h-full transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-20'}`} style={{ background: '#202123' }}>
+        <nav className="flex flex-col gap-2 w-full mt-2">
+          {NAVIGATION_TABS.map(item => (
+            <button
+              key={item.id}
+              className={`flex flex-col items-center justify-center w-12 h-12 mx-auto rounded-lg transition-colors duration-150 relative ${activeScreen === item.id ? 'chatgpt-sidebar-active text-white' : 'text-gray-400 hover:bg-[#2a2b32]'}`}
+              onClick={() => setActiveScreen(item.id as Screen)}
+              aria-label={item.label}
+              title={item.description}
+            >
+              {item.icon}
+            </button>
+          ))}
+          {/* Agents button replaces Tools/Plugin button */}
+          <button
+            className="flex flex-col items-center justify-center w-12 h-12 mx-auto rounded-lg transition-colors duration-150 relative text-gray-400 hover:bg-[#2a2b32] mt-4"
+            aria-label="Agents"
+            title="Manage Agents"
+            // onClick handler for agents modal or navigation
+          >
+            <Users className="w-6 h-6" />
+          </button>
+        </nav>
+        {/* Collapse/Expand button at the bottom */}
+        <button
+          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          className="mt-auto mb-2 p-2 rounded hover:bg-[#2a2b32] text-gray-400"
+          title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label="Toggle sidebar"
+        >
+          {sidebarCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
+        </button>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 flex flex-col h-full min-h-0 p-0 bg-[#101014] overflow-x-hidden">
+        {/* Workspace Content */}
+        {activeScreen === 'chat' && (
+          <div className="flex-1 flex flex-col min-h-0">
+            <ChatWorkspace GlobalControls={GlobalControls} />
           </div>
-          {piConnected && (
-            <>
-              <div className="pi-status-item">
-                <span className={`status-indicator ${alexosStatus}`}></span>
-                <span>ALEX OS: {alexosStatus}</span>
-                {alexosStatus === 'stopped' && (
-                  <button onClick={handleAlexosStart} className="start-btn">
-                    Start
-                  </button>
-                )}
-                {alexosStatus === 'running' && (
-                  <button onClick={handleAlexosStop} className="stop-btn">
-                    Stop
-                  </button>
-                )}
-              </div>
-              <div className="pi-status-item">
-                <span className={`status-indicator ${watchtowerStatus}`}></span>
-                <span>Watchtower: {watchtowerStatus}</span>
-                {watchtowerStatus === 'stopped' && (
-                  <button onClick={handleWatchtowerStart} className="start-btn">
-                    Start
-                  </button>
-                )}
-                {watchtowerStatus === 'running' && (
-                  <button onClick={handleWatchtowerStop} className="stop-btn">
-                    Stop
-                  </button>
-                )}
-              </div>
-            </>
-          )}
+        )}
+        {activeScreen === 'devbot' && (
+          <div className="flex-1 flex flex-col min-h-0">
+            <DevBotWorkspace GlobalControls={GlobalControls} />
+          </div>
+        )}
+        {activeScreen === 'chainbot' && (
+          <div className="flex-1 flex flex-col min-h-0">
+            <ChainBotWorkspace GlobalControls={GlobalControls} />
+          </div>
+        )}
+        {activeScreen === 'harry' && (
+          <div className="flex-1 flex flex-col min-h-0">
+            <HarryWorkspace GlobalControls={GlobalControls} />
+          </div>
+        )}
+        {activeScreen === 'sandbox' && (
+          <div className="flex-1 flex flex-col min-h-0">
+            <SandboxWorkspace GlobalControls={GlobalControls} />
+          </div>
+        )}
+
+        {/* Plugin Panels (enabled) */}
+        {plugins.filter(p => enabled[p.id] && p.renderPanel).map(p => (
+          <div key={p.id} className="border-t border-gray-800 bg-[#18181b]">
+            {p.renderPanel && p.renderPanel()}
+          </div>
+        ))}
+      </main>
+
+      {/* Command Palette Modal */}
+      {showCommandPalette && (
+        <div onClick={handleCloseCommandPalette}>
+          <CommandPaletteRoot />
         </div>
       )}
 
-      {/* Main Application */}
-      <div className="app-container">
-        {/* Left Pane - Sessions */}
-        <div className="left-pane">
-          <LeftPaneSessions 
-            selectedSessionId={selectedSessionId} 
-            onSelectSession={setSelectedSessionId} 
-          />
-        </div>
-
-        {/* Center Pane - Main Content */}
-        <div className="center-pane">
-          {/* Tab Navigation */}
-          <div className="tab-navigation">
-            <button 
-              className={`tab-button ${activeTab === 'chat' ? 'active' : ''}`}
-              onClick={() => setActiveTab('chat')}
+      {/* Plugin Manager Modal */}
+      {showPluginManager && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+          <div className="bg-[#18181b] rounded-lg shadow-2xl max-w-2xl w-full relative">
+            <button
+              onClick={() => setShowPluginManager(false)}
+              className="absolute top-2 right-2 text-gray-400 hover:text-white text-2xl font-bold px-2"
+              title="Close"
             >
-              Chat
+              ×
             </button>
-            <button 
-              className={`tab-button ${activeTab === 'workflows' ? 'active' : ''}`}
-              onClick={() => setActiveTab('workflows')}
-            >
-              Workflows
-            </button>
-            <button 
-              className={`tab-button ${activeTab === 'agents' ? 'active' : ''}`}
-              onClick={() => setActiveTab('agents')}
-            >
-              Agents
-            </button>
-            <button 
-              className={`tab-button ${activeTab === 'chatgpt-import' ? 'active' : ''}`}
-              onClick={() => setActiveTab('chatgpt-import')}
-            >
-              ChatGPT Import
-            </button>
-            <button 
-              className={`tab-button ${activeTab === 'watchtower' ? 'active' : ''}`}
-              onClick={() => setActiveTab('watchtower')}
-            >
-              Watchtower
-            </button>
-          </div>
-
-          {/* Tab Content */}
-          <div className="tab-content">
-            {activeTab === 'chat' && (
-              <CenterPaneChat selectedSessionId={selectedSessionId} />
-            )}
-            {activeTab === 'workflows' && (
-              <WorkflowBuilder 
-                sessionId={selectedSessionId || 1} 
-                onDeployWorkflow={handleDeployWorkflow}
-              />
-            )}
-            {activeTab === 'agents' && (
-              <AgentManager sessionId={selectedSessionId || 1} />
-            )}
-            {activeTab === 'chatgpt-import' && (
-              <ChatGPTDataImporter />
-            )}
-            {activeTab === 'watchtower' && (
-              <WatchtowerManager />
-            )}
+            <PluginManager onClose={() => setShowPluginManager(false)} />
           </div>
         </div>
+      )}
 
-        {/* Right Pane - Logs */}
-        <div className="right-pane">
-          <RightPaneLogs />
-        </div>
-      </div>
+      {/* Preferences Panel */}
+      <PreferencesPanel 
+        isOpen={showPreferences} 
+        onClose={() => setShowPreferences(false)} 
+      />
+
+      {/* Keyboard Shortcuts Help */}
+      <KeyboardShortcutsHelp
+        isOpen={showKeyboardHelp}
+        onClose={() => setShowKeyboardHelp(false)}
+        shortcuts={shortcuts}
+      />
     </div>
   );
 };
 
-function App() {
+const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <MainApp />
-    </AuthProvider>
+    <PreferencesProvider>
+      <AnalyticsProvider>
+        <ModelProvider>
+          <PluginProvider>
+            <WorkflowProvider>
+              <SuggestionsProvider>
+                <AppContent />
+              </SuggestionsProvider>
+            </WorkflowProvider>
+          </PluginProvider>
+        </ModelProvider>
+      </AnalyticsProvider>
+    </PreferencesProvider>
   );
-}
+};
 
-export default App; 
+export default App;
+
+<style>{`
+  .chatgpt-overlay {
+    background-color: rgba(52, 53, 65, 0.92) !important;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px !important;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  .chatgpt-sidebar-active {
+    background-color: rgba(52, 53, 65, 0.92) !important;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px !important;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+    /* No blur for sidebar button */
+  }
+`}</style>
